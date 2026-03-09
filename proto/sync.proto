@@ -1,0 +1,102 @@
+syntax = "proto3";
+
+package sync.v1;
+
+// ============================================================================
+// Envelope
+// ============================================================================
+
+// Envelope is the outer container for all messages exchanged between
+// client and server.
+//
+// All messages are versioned by the server-authoritative logical timestamp `ts`.
+// Clients MUST NOT assume wall-clock meaning for `ts`.
+message Envelope {
+  // Server-authoritative version of the game state.
+  //
+  // - Monotonically increasing.
+  // - Assigned by the server.
+  // - Used to determine ordering and synchronization.
+
+  // Server always set this according to its newest knowledge.
+  // For client messages, tc means that the latest tc that the client knows about the whole status.
+  // tc = 0 is only sent by clients that know nothing.
+
+  uint64 tc = 1;
+
+  oneof payload {
+    ClientAction action = 10;
+    SyncRequest sync_request = 11;
+    SyncResponse sync_response = 12;
+  }
+}
+
+// ============================================================================
+// Client -> Server
+// ============================================================================
+
+// ClientAction represents a player's intent to perform an action.
+//
+// IMPORTANT:
+// - `tc` is the client's local view of the server version.
+// - It is used ONLY for synchronization decisions.
+// - The server MUST apply the action on its current state, not at `tc`.
+message ClientAction {
+  // Grid coordinate.
+  uint32 x = 1;
+  uint32 y = 2;
+  string content = 3;
+}
+
+// SyncRequest is sent by the client to request state synchronization.
+//
+// This can be triggered periodically, on reconnect, or when the client
+// detects inconsistency.
+message SyncRequest {}
+
+// ============================================================================
+// Server -> Client
+// ============================================================================
+
+// SyncResponse contains either incremental updates or a full snapshot.
+//
+// The server decides which variant to use based on how old `tc` is.
+message SyncResponse {
+  oneof kind {
+    BoardDelta delta = 1;
+    BoardSnapshot snapshot = 2;
+  }
+  string message = 3;
+}
+
+// ============================================================================
+// State representations
+// ============================================================================
+
+message CellDelta {
+  uint32 x = 1;
+  uint32 y = 2;
+  uint32 data = 3;
+}
+
+// BoardDelta represents incremental changes between two versions.
+//
+// Semantics:
+// - Applies only if the client is exactly at `from_ts`.
+// - Applying the delta advances the client state to `to_ts`.
+message BoardDelta {
+  // Inclusive start version.
+  uint64 from_ts = 1;
+  repeated CellDelta changed_cells = 2;
+}
+
+// BoardSnapshot represents a full authoritative state of the board.
+//
+// Semantics:
+// - Completely replaces any local client state.
+// - After applying, client tc MUST be set to `ts`.
+message BoardSnapshot {
+  uint32 x_len = 1;
+  uint32 y_len = 2;
+  repeated uint32 board = 3;
+}

@@ -1,0 +1,20 @@
+{
+  "name": "@thunt/hut-ws-proto",
+  "version": "0.1.1",
+  "description": "Shared Protobuf definitions for Rust and TS",
+  "main": "./generated/sync.ts",
+  "types": "./generated/sync.ts",
+  "scripts": {
+    "generate": "mkdir -p generated && pnpm exec protoc --ts_out generated/ --proto_path proto/ proto/sync.proto && sed -i '1i // @ts-nocheck' generated/sync.ts",
+    "build": "pnpm run generate"
+  },
+  "devDependencies": {
+    "@types/google-protobuf": "^3.15.12",
+    "protobufjs": "^7.2.0",
+    "protoc-gen-ts": "^0.8.7",
+    "ts-proto": "^1.170.0"
+  },
+  "dependencies": {
+    "google-protobuf": "^4.0.2"
+  }
+}
